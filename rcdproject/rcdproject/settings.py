@@ -114,12 +114,12 @@ WSGI_APPLICATION = 'rcdproject.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'gestion_rcd_database',
-        'USER': 'rcdgestion',
-        'PASSWORD': 'rcd_gestion',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'rcddatabase2025',
+        'USER': 'postgres',
+        'PASSWORD': 'GatoEnElPozo123',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '',
     }
 }
 
