@@ -114,7 +114,6 @@ class CrearUsuario(APIView):
 
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     authentication_classes = []  
     permission_classes = [AllowAny]

@@ -11,25 +11,29 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
 from pathlib import Path
+import environ
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.info("SECRET_KEY from environment: %s", os.environ.get('SECRET_KEY'))
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project like: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Inicializa django-environ con un valor por defecto para DEBUG.
+env = environ.Env(DEBUG=(bool, False))
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
+# Carga el archivo .env solo si existe.
+env_file = os.path.join(BASE_DIR, '.env')
+if os.path.exists(env_file):
+    environ.Env.read_env(env_file)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-d&@!3$x18jknwgos(acz6+&2_)-*+wsv85(j)e&fg&l)czvg8v'
+# En producción, SECRET_KEY debe inyectarse vía app.yaml.
+SECRET_KEY = env('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['rcd-instancia-2025.rj.r.appspot.com']
 
 # Application definition
-
 INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.admin',
@@ -39,11 +43,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'usuarios.apps.UsuariosConfig',
+    'rest_framework',
     'rest_framework.authtoken',
+    'channels',
     'clientes',
     'transportistas',
     'empresas_gestoras',
-    'rest_framework',
     'supervisor_obra',
     'obras',
     'mezclados',
@@ -57,7 +62,12 @@ INSTALLED_APPS = [
     'puntolimpio',
     'materiales',
     'notificaciones',
+    'storages'
 ]
+
+DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+GS_BUCKET_NAME = 'rcd-bucket-2025'
+GS_QUERYSTRING_AUTH = False 
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
@@ -70,6 +80,14 @@ REST_FRAMEWORK = {
     ],
 }
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis_host", 6379)],
+        },
+    },
+}
 
 
 MIDDLEWARE = [
@@ -81,11 +99,16 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'http://127.0.0.1:5173'
+    'http://127.0.0.1:5173',
+    'https://react-app-474658888453.southamerica-east1.run.app'
 ]
 
 ROOT_URLCONF = 'rcdproject.urls'
@@ -108,26 +131,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'rcdproject.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'rcddatabase2025',
-        'USER': 'postgres',
-        'PASSWORD': 'GatoEnElPozo123',
-        'HOST': 'localhost',
-        'PORT': '',
-    }
+    'default': env.db(),  # Se espera que la variable DATABASE_URL esté definida.
 }
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -143,29 +154,23 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

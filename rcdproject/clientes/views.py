@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from usuarios.permisos import RutaProtegida
@@ -7,6 +6,7 @@ from django.utils import timezone
 from rest_framework.permissions import AllowAny, IsAuthenticated
 import secrets
 from .models import Cliente, SolicitudCliente
+from .notificaciones import notificar_cambio_clientes
 from obras.models import Obra
 from .serializers import (
     ClienteSerializer,
@@ -14,11 +14,12 @@ from .serializers import (
     SolicitudClienteSerializer,
     SolicitudClienteAdminSerializer,
 )
-from django.contrib.auth import get_user_model, authenticate
-from rest_framework.authtoken.models import Token
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 
+from rest_framework.authtoken.models import Token
 Usuario = get_user_model()
+
 
 class RegistroCliente(APIView):
     """
@@ -50,7 +51,15 @@ class RegistroCliente(APIView):
         if serializer_cliente.is_valid():
             cliente = serializer_cliente.save()
             SolicitudCliente.objects.create(cliente=cliente)
-            token, _ = Token.objects.get_or_create(user=usuario)
+            try:
+                token, _ = Token.objects.get_or_create(user=usuario)
+            except Exception as e:
+                import traceback
+                print("Error al crear token:", e)
+                print(traceback.format_exc())
+                return Response({"error": "Error interno al crear el token."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Notifica que se ha agregado un cliente
+            notificar_cambio_clientes('alta', cliente)
             return Response({
                 'mensaje': 'Cliente registrado, pendiente de aprobación.',
                 'cliente': ClienteSerializer(cliente).data,
@@ -98,10 +107,14 @@ class AprobarSolicitudCliente(APIView):
         
         token, _ = Token.objects.get_or_create(user=usuario)
         
+        # Notifica el alta del cliente (si se considera que al aprobar se activa)
+        notificar_cambio_clientes('alta', solicitud.cliente)
+        
         return Response({
             'mensaje': "Solicitud aprobada. El usuario tiene rol 'cliente'.",
             'token': token.key
         }, status=status.HTTP_200_OK)
+
 
 
 class RechazarSolicitudCliente(APIView):
@@ -203,8 +216,11 @@ class EliminarCliente(APIView):
         except Cliente.DoesNotExist:
             return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         
+        notificar_cambio_clientes('eliminacion', cliente)
+        
         cliente.delete()
         return Response({'mensaje': 'Cliente eliminado.'}, status=status.HTTP_200_OK)
+
 
 class MarcarComoTerminadoSolicitudCliente(APIView):
     """
@@ -267,3 +283,4 @@ class ListarPuntoLimpioPorCliente(generics.ListAPIView):
             # Filtra los puntos limpios cuyas obras pertenezcan al cliente logueado (por email)
             return PuntoLimpio.objects.filter(obra__cliente__usuario__email=user.email)
         return PuntoLimpio.objects.none()
+

@@ -6,6 +6,8 @@ from .models import CoordinacionRetiro
 from .serializers import CoordinacionRetiroSerializer
 from usuarios.permisos import RutaProtegida
 
+from .notificaciones import notificar_coordinacion
+
 class CrearCoordinacionRetiro(APIView):
     permission_classes = [RutaProtegida(['superadmin', 'coordinadorlogistico', 'cliente', 'supervisor'])]
 
@@ -13,6 +15,8 @@ class CrearCoordinacionRetiro(APIView):
         serializer = CoordinacionRetiroSerializer(data=request.data)
         if serializer.is_valid():
             coordinacion = serializer.save()
+            # Envía notificación de nueva coordinación
+            notificar_coordinacion('creada', coordinacion)
             return Response(
                 CoordinacionRetiroSerializer(coordinacion, context={'request': request}).data, 
                 status=status.HTTP_201_CREATED
@@ -34,9 +38,6 @@ class ListarCoordinacionesRetiro(APIView):
 
 
 class AceptarCoordinacionRetiro(APIView):
-    """
-    Permite al administrador aceptar una solicitud de coordinación de retir
-    """
     permission_classes = [RutaProtegida(['superadmin', 'coordinadorlogistico'])]
     
     def put(self, request, pk):
@@ -54,13 +55,14 @@ class AceptarCoordinacionRetiro(APIView):
         else:
             coordinacion.fecha_retiro = request.data['fecha_retiro']
         coordinacion.save()
+        
+        # Notifica que la coordinación ha sido aceptada
+        notificar_coordinacion('aceptada', coordinacion)
+        
         return Response({'mensaje': 'Solicitud de coordinación de retiro aceptada.'}, status=status.HTTP_200_OK)
 
 
 class RechazarCoordinacionRetiro(APIView):
-    """
-    Permite al administrador rechazar una solicitud de coordinación de retiro
-    """
     permission_classes = [RutaProtegida(['superadmin', 'coordinadorlogistico'])]
     
     def put(self, request, pk):
@@ -74,6 +76,10 @@ class RechazarCoordinacionRetiro(APIView):
         
         coordinacion.estado = 'rechazado'
         coordinacion.save()
+        
+        # Notifica que la coordinación ha sido rechazada
+        notificar_coordinacion('rechazada', coordinacion)
+        
         return Response({'mensaje': 'Solicitud de coordinación de retiro rechazada.'}, status=status.HTTP_200_OK)
 
 
@@ -133,20 +139,18 @@ class ActualizarCoordinacionRetiro(APIView):
     permission_classes = [RutaProtegida(['superadmin', 'coordinadorlogistico', 'cliente'])]
 
     def patch(self, request, pk):
-        # Se obtiene la coordinación o se lanza 404 si no existe
         coordinacion = get_object_or_404(CoordinacionRetiro, pk=pk)
-
-        # Se instancia el serializer con partial=True para permitir actualización parcial
         serializer = CoordinacionRetiroSerializer(
             coordinacion,
             data=request.data,
-            partial=True,                # <----- Importante
+            partial=True,
             context={'request': request}
         )
 
         if serializer.is_valid():
             coordinacion_actualizada = serializer.save()
-            # Retornamos la data actualizada
+            # Notifica que la coordinación ha sido actualizada
+            notificar_coordinacion('actualizada', coordinacion_actualizada)
             return Response(
                 CoordinacionRetiroSerializer(coordinacion_actualizada, context={'request': request}).data,
                 status=status.HTTP_200_OK
