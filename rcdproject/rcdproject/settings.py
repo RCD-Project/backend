@@ -31,7 +31,7 @@ if os.path.exists(env_file):
 # En producción, SECRET_KEY debe inyectarse vía app.yaml.
 SECRET_KEY = env('SECRET_KEY')
 
-ALLOWED_HOSTS = ['https://backend-phi-lime.vercel.app/']
+ALLOWED_HOSTS = ['https://backend-phi-lime.vercel.app']
 
 # Application definition
 INSTALLED_APPS = [
@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'usuarios.apps.UsuariosConfig',
-    'rest_framework',
+    
     'rest_framework.authtoken',
     'channels',
     'clientes',
